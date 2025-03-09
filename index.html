@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paradox QR Toolkit Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2A2A72;
+            --secondary-color: #009FFD;
+            --accent-color: #00C9A7;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .tool-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            margin: 20px 0;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .scanner-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .scanner-emoji {
+            font-size: 1.8em;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 25px auto;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        #qr-video {
+            width: 100%;
+            height: auto;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid var(--accent-color);
+            animation: pulse 2s infinite;
+            box-sizing: border-box;
+        }
+
+        @keyframes pulse {
+            0% { border-color: var(--accent-color); }
+            50% { border-color: rgba(0, 201, 167, 0.5); }
+            100% { border-color: var(--accent-color); }
+        }
+
+        .action-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1.1em;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            max-width: 400px;
+            margin: 10px 0;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .generator-input {
+            width: 100%;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .generator-input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 700px;
+            position: relative;
+        }
+
+        .scan-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+
+        .result-button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .go-button {
+            background: #00C9A7;
+            color: white;
+        }
+
+        .copy-button {
+            background: #2A2A72;
+            color: white;
+        }
+
+        .result-button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        footer a:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+
+        .qr-output-container {
+            position: relative;
+            margin: 25px auto;
+            width: fit-content;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Scanner Activation Box -->
+        <div class="tool-box">
+            <div class="scanner-header">
+                <span class="scanner-emoji">📷</span>
+                <h2 style="color: var(--primary-color);">QR Code Scanner</h2>
+            </div>
+            <button class="action-button" onclick="showScannerModal()">
+                🔍 Open QR Scanner
+            </button>
+        </div>
+
+        <!-- Scanner Modal -->
+        <div id="scannerModal" class="modal">
+            <div class="modal-content tool-box">
+                <div class="scanner-header">
+                    <span class="scanner-emoji">🔍</span>
+                    <h2 style="color: var(--primary-color);">Scan QR Code</h2>
+                </div>
+                <div class="scanner-container">
+                    <video id="qr-video"></video>
+                    <div class="scan-overlay"></div>
+                </div>
+                <div class="scan-result" id="scanResult">
+                    <div id="scannedContent"></div>
+                    <div class="result-actions">
+                        <button class="result-button go-button" onclick="handleGo()">Go</button>
+                        <button class="result-button copy-button" onclick="handleCopy()">Copy</button>
+                    </div>
+                </div>
+                <button class="action-button" onclick="stopScanner()" style="background: var(--accent-color);">
+                    Close Scanner
+                </button>
+            </div>
+        </div>
+
+        <!-- QR Generator Box -->
+        <div class="tool-box">
+            <div class="scanner-header">
+                <span class="scanner-emoji">⚡</span>
+                <h2 style="color: var(--primary-color);">QR Code Generator</h2>
+            </div>
+            <input type="text" class="generator-input" id="qrText" placeholder="Enter text or URL here">
+            <button class="action-button" onclick="generateQRCode()" style="background: var(--secondary-color);">
+                Generate QR Code
+            </button>
+            <div class="qr-output-container">
+                <div id="qrcode"></div>
+                <button id="downloadBtn" class="action-button" 
+                        style="display: none; background: var(--accent-color);" 
+                        onclick="downloadQRCode()">
+                    Download QR Code
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer Credit -->
+        <footer>
+            <p>Developed by <a href="https://www.khubaybhossain.com" target="_blank">Khubayb Hossain</a> | All rights reserved</p>
+        </footer>
+    </div>
+
+    <script>
+        // Scanner Functions
+        let videoStream = null;
+        let lastScannedData = '';
+        let scanningActive = true;
+
+        function showScannerModal() {
+            const modal = document.getElementById('scannerModal');
+            modal.style.display = 'flex';
+            document.getElementById('scanResult').style.display = 'none';
+            startScanner();
+        }
+
+        async function startScanner() {
+            const video = document.getElementById('qr-video');
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: "environment",
+                        width: { min: 640, ideal: 1280, max: 1920 },
+                        height: { min: 480, ideal: 720, max: 1080 },
+                        aspectRatio: { ideal: 1.7777777778 } // 16:9
+                    } 
+                });
+                
+                video.srcObject = videoStream;
+                video.setAttribute('playsinline', true); // For mobile devices
+                video.style.display = 'block';
+                
+                await video.play();
+                requestAnimationFrame(tick);
+            } catch (error) {
+                alert('Camera access required for scanning. Please enable permissions: ' + error.message);
+            }
+        }
+
+        function tick() {
+            if (!scanningActive) return;
+            
+            const video = document.getElementById('qr-video');
+            if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                try {
+                    const code = jsQR(
+                        ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+                        canvas.width,
+                        canvas.height,
+                        { inversionAttempts: 'dontInvert' }
+                    );
+
+                    if (code && code.data !== lastScannedData) {
+                        lastScannedData = code.data;
+                        handleScanResult(code.data);
+                    }
+                } catch(e) {
+                    console.error('QR processing error:', e);
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function handleScanResult(data) {
+            const resultDiv = document.getElementById('scannedContent');
+            const scanResult = document.getElementById('scanResult');
+            
+            resultDiv.innerHTML = `Scanned: <strong>${data}</strong>`;
+            scanResult.style.display = 'block';
+        }
+
+        function handleGo() {
+            try {
+                let url = lastScannedData;
+                // Add http protocol if missing
+                if (!/^https?:\/\//i.test(url)) {
+                    url = 'http://' + url;
+                }
+                
+                if (isValidHttpUrl(url)) {
+                    window.location.href = url;
+                } else {
+                    alert('Invalid URL format');
+                }
+            } catch (error) {
+                alert('Error redirecting: ' + error.message);
+            }
+        }
+
+        function isValidHttpUrl(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function stopScanner() {
+            scanningActive = false;
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('scannerModal').style.display = 'none';
+            lastScannedData = '';
+        }
+
+        // Generator Functions
+        function generateQRCode() {
+            const qrText = document.getElementById("qrText").value.trim();
+            const qrDiv = document.getElementById("qrcode");
+            qrDiv.innerHTML = "";
+
+            if (qrText) {
+                new QRCode(qrDiv, {
+                    text: qrText,
+                    width: 400,
+                    height: 400,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                setTimeout(() => {
+                    document.getElementById("downloadBtn").style.display = "block";
+                }, 500);
+            } else {
+                alert("Please enter valid content for the QR code");
+            }
+        }
+
+        function downloadQRCode() {
+            const qrCanvas = document.querySelector("#qrcode canvas");
+            const downloadCanvas = document.createElement("canvas");
+            const ctx = downloadCanvas.getContext("2d");
+            
+            // High resolution settings
+            const scale = 4;
+            downloadCanvas.width = qrCanvas.width * scale;
+            downloadCanvas.height = (qrCanvas.height + 40) * scale;
+
+            ctx.scale(scale, scale);
+            ctx.drawImage(qrCanvas, 0, 0);
+            
+            // Add branding text
+            ctx.font = "bold 16px 'Inter'";
+            ctx.fillStyle = "#2A2A72";
+            ctx.textAlign = "center";
+            ctx.fillText("Developed by Khubayb Hossain", qrCanvas.width/2, qrCanvas.height + 25);
+
+            const link = document.createElement("a");
+            link.download = "paradox-qr-code.png";
+            link.href = downloadCanvas.toDataURL("image/png", 1.0);
+            link.click();
+        }
+    </script>
+</body>
+</html>
